@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["Health"])
 
 @router.get("/")
 def root() -> dict[str, str]:
