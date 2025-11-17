@@ -1,6 +1,6 @@
 """Sentiment analysis service for emotional content classification."""
 import re
-from typing import Tuple
+from typing import Tuple, List
 
 from core.logging import logger
 
@@ -32,36 +32,28 @@ class SentimentAnalyzer:
         self.negation_pattern = re.compile(r'\b(?:' + '|'.join(self.negations) + r')\b', re.IGNORECASE)
     
     def _load_sentiment_words(self) -> Tuple[List[str], List[str]]:
-        """Load sentiment words from dataset or use defaults."""
-        try:
-            texts, labels = self.dataset_loader.load_sentiment_dataset()
-            
-            # Extract words from positive and negative examples (simplified)
-            positive_texts = [texts[i] for i, label in enumerate(labels) if label == 'positive']
-            negative_texts = [texts[i] for i, label in enumerate(labels) if label == 'negative']
-            
-            # For now, use default words but could extract from examples
-            positive_words = [
-                "good", "great", "excellent", "amazing", "wonderful", "fantastic",
-                "love", "like", "enjoy", "happy", "pleased", "satisfied",
-                "awesome", "brilliant", "perfect", "outstanding", "superb"
-            ]
-            
-            negative_words = [
-                "bad", "terrible", "awful", "horrible", "disgusting", "hate",
-                "dislike", "angry", "frustrated", "disappointed", "sad",
-                "annoying", "stupid", "worst", "useless", "pathetic"
-            ]
-            
-            return positive_words, negative_words
-            
-        except Exception as e:
-            logger.warning(f"Could not load sentiment dataset: {e}. Using default words.")
-            return [
-                "good", "great", "love", "like", "happy", "excellent"
-            ], [
-                "bad", "hate", "terrible", "awful", "sad", "angry"
-            ]
+        """Load sentiment words from real dataset."""
+        texts, labels = self.dataset_loader.load_sentiment_dataset()
+        
+        # Extract words from positive and negative examples
+        positive_texts = [texts[i] for i, label in enumerate(labels) if label == 'positive']
+        negative_texts = [texts[i] for i, label in enumerate(labels) if label == 'negative']
+        
+        # Extract common words from each sentiment category
+        positive_words = set()
+        negative_words = set()
+        
+        # Process positive texts
+        for text in positive_texts[:200]:  # Limit for performance
+            words = text.lower().split()
+            positive_words.update([word for word in words if len(word) > 3])
+        
+        # Process negative texts
+        for text in negative_texts[:200]:  # Limit for performance
+            words = text.lower().split()
+            negative_words.update([word for word in words if len(word) > 3])
+        
+        return list(positive_words)[:50], list(negative_words)[:50]
     
     def analyze_sentiment(self, text: str) -> Tuple[str, float, float]:
         """Analyze sentiment of text.

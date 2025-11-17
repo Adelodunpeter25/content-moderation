@@ -23,15 +23,8 @@ class ProfanityFilter:
         self.profanity_pattern = self._build_profanity_pattern()
     
     def _load_profanity_words(self) -> List[str]:
-        """Load profanity words from dataset or use defaults."""
-        try:
-            return self.dataset_loader.load_profanity_wordlist()
-        except Exception as e:
-            logger.warning(f"Could not load profanity dataset: {e}. Using default words.")
-            return [
-                "damn", "hell", "crap", "stupid", "idiot", "moron",
-                "dumb", "suck", "sucks", "wtf", "omg", "lmao"
-            ]
+        """Load profanity words from real dataset."""
+        return self.dataset_loader.load_profanity_wordlist()
         
     def _build_profanity_pattern(self) -> re.Pattern:
         """Build regex pattern for profanity detection."""

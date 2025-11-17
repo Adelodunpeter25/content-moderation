@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "A multi-app content moderation system built with FastAPI."
 requires-python = ">=3.13"
 dependencies = [
+    "datasets>=3.2.0",
     "fastapi>=0.121.1",
     "joblib>=1.5.2",
     "numpy>=2.3.4",
     "pandas>=2.2.3",
     "requests>=2.32.3",
     "scikit-learn>=1.7.2",
+    "transformers>=4.48.0",
     "uvicorn>=0.38.0",
 ]
