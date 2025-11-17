@@ -68,7 +68,7 @@ class DataLoader:
         Returns:
             Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
         """
-        print("Loading Kaggle email spam dataset...")
+        logger.info("Loading Kaggle email spam dataset...")
         
         df = kagglehub.load_dataset(
             KaggleDatasetAdapter.PANDAS,
@@ -76,8 +76,26 @@ class DataLoader:
             "emails.csv"
         )
         
-        texts = df['text'].tolist()
-        labels = [1 if label == 'spam' else 0 for label in df['label']]
+        # Check available columns and use appropriate ones
+        logger.info(f"Kaggle dataset columns: {df.columns.tolist()}")
+        
+        # Common column names for text and labels
+        text_col = None
+        label_col = None
+        
+        for col in df.columns:
+            if col.lower() in ['text', 'message', 'email', 'content']:
+                text_col = col
+            elif col.lower() in ['label', 'spam', 'class', 'category']:
+                label_col = col
+        
+        if not text_col or not label_col:
+            logger.warning(f"Could not find text/label columns in Kaggle dataset. Using first two columns.")
+            text_col = df.columns[0]
+            label_col = df.columns[1]
+        
+        texts = df[text_col].tolist()
+        labels = [1 if str(label).lower() == 'spam' else 0 for label in df[label_col]]
         
         return texts, labels
     
