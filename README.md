@@ -38,6 +38,10 @@ content-moderation/
 ### Installation
 
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd content-moderation
+
 # Install dependencies
 uv sync
 ```
