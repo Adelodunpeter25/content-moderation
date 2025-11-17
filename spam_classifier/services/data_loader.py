@@ -7,6 +7,8 @@ from typing import Tuple
 import kagglehub
 from kagglehub import KaggleDatasetAdapter
 
+from core.logging import logger
+
 class DataLoader:
     """Loads and prepares spam classification datasets."""
     
@@ -85,25 +87,25 @@ class DataLoader:
         Returns:
             Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
         """
-        print("Loading combined datasets...")
+        logger.info("Loading combined spam datasets...")
         
         # Load SMS dataset
         sms_texts, sms_labels = self.load_sms_spam_dataset()
-        print(f"Loaded {len(sms_texts)} SMS samples")
+        logger.info(f"Loaded {len(sms_texts)} SMS samples")
         
         # Load YouTube dataset
         youtube_texts, youtube_labels = self.load_youtube_spam_dataset()
-        print(f"Loaded {len(youtube_texts)} YouTube samples")
+        logger.info(f"Loaded {len(youtube_texts)} YouTube samples")
         
         # Load Kaggle email dataset
         kaggle_texts, kaggle_labels = self.load_kaggle_email_dataset()
-        print(f"Loaded {len(kaggle_texts)} Kaggle email samples")
+        logger.info(f"Loaded {len(kaggle_texts)} Kaggle email samples")
         
         # Combine datasets
         combined_texts = sms_texts + youtube_texts + kaggle_texts
         combined_labels = sms_labels + youtube_labels + kaggle_labels
         
-        print(f"Total combined samples: {len(combined_texts)}")
+        logger.info(f"Total combined samples: {len(combined_texts)}")
         return combined_texts, combined_labels
     
     def _download_sms_dataset(self, file_path: Path) -> None:

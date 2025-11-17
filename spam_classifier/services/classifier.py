@@ -5,6 +5,7 @@ import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
+from core.logging import logger
 from .data_loader import DataLoader
 
 class SpamClassifier:
@@ -53,7 +54,7 @@ class SpamClassifier:
         loader = DataLoader()
         texts, labels = loader.load_combined_datasets()
         
-        print(f"Training with {len(texts)} samples")
+        logger.info(f"Training spam classifier with {len(texts)} samples")
         self.train(texts, labels)
     
     def _save_model(self) -> None:
@@ -72,6 +73,6 @@ class SpamClassifier:
             self.model = joblib.load(self.model_path)
             self.vectorizer = joblib.load(self.vectorizer_path)
             self.is_trained = True
-            print("Loaded saved model")
+            logger.info("Loaded saved spam classification model")
             return True
         return False
