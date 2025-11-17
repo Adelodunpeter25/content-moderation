@@ -4,9 +4,6 @@ import requests
 from pathlib import Path
 from typing import Tuple
 
-import kagglehub
-from kagglehub import KaggleDatasetAdapter
-
 from core.logging import logger
 
 class DataLoader:
@@ -62,42 +59,7 @@ class DataLoader:
         
         return texts, labels
     
-    def load_kaggle_email_dataset(self) -> Tuple[list[str], list[int]]:
-        """Load Kaggle email spam dataset.
-        
-        Returns:
-            Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
-        """
-        logger.info("Loading Kaggle email spam dataset...")
-        
-        df = kagglehub.load_dataset(
-            KaggleDatasetAdapter.PANDAS,
-            "balaka18/email-spam-classification-dataset-csv",
-            "emails.csv"
-        )
-        
-        # Check available columns and use appropriate ones
-        logger.info(f"Kaggle dataset columns: {df.columns.tolist()}")
-        
-        # Common column names for text and labels
-        text_col = None
-        label_col = None
-        
-        for col in df.columns:
-            if col.lower() in ['text', 'message', 'email', 'content']:
-                text_col = col
-            elif col.lower() in ['label', 'spam', 'class', 'category']:
-                label_col = col
-        
-        if not text_col or not label_col:
-            logger.warning(f"Could not find text/label columns in Kaggle dataset. Using first two columns.")
-            text_col = df.columns[0]
-            label_col = df.columns[1]
-        
-        texts = [str(text) for text in df[text_col].tolist()]
-        labels = [1 if str(label).lower() == 'spam' else 0 for label in df[label_col]]
-        
-        return texts, labels
+
     
     def load_combined_datasets(self) -> Tuple[list[str], list[int]]:
         """Load and combine multiple spam datasets.
@@ -115,13 +77,9 @@ class DataLoader:
         youtube_texts, youtube_labels = self.load_youtube_spam_dataset()
         logger.info(f"Loaded {len(youtube_texts)} YouTube samples")
         
-        # Load Kaggle email dataset
-        kaggle_texts, kaggle_labels = self.load_kaggle_email_dataset()
-        logger.info(f"Loaded {len(kaggle_texts)} Kaggle email samples")
-        
         # Combine datasets
-        combined_texts = sms_texts + youtube_texts + kaggle_texts
-        combined_labels = sms_labels + youtube_labels + kaggle_labels
+        combined_texts = sms_texts + youtube_texts
+        combined_labels = sms_labels + youtube_labels
         
         logger.info(f"Total combined samples: {len(combined_texts)}")
         return combined_texts, combined_labels
