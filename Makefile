@@ -12,10 +12,10 @@ install:
 	uv sync
 
 run:
-	uvicorn core.app.main:app
+	uv run uvicorn core.app.main:app
 
 dev:
-	uvicorn core.app.main:app --reload
+	uv run uvicorn core.app.main:app --reload
 
 test:
 	python -m pytest
