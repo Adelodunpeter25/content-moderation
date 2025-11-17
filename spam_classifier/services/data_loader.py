@@ -73,7 +73,7 @@ class DataLoader:
         df = kagglehub.load_dataset(
             KaggleDatasetAdapter.PANDAS,
             "balaka18/email-spam-classification-dataset-csv",
-            ""
+            "emails.csv"
         )
         
         texts = df['text'].tolist()
