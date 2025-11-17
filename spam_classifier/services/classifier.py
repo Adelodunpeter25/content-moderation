@@ -49,9 +49,9 @@ class SpamClassifier:
         return bool(prediction), float(confidence)
     
     def _load_or_create_model(self) -> None:
-        """Load existing model or create one with real dataset."""
+        """Load existing model or create one with combined datasets."""
         loader = DataLoader()
-        texts, labels = loader.load_sms_spam_dataset()
+        texts, labels = loader.load_combined_datasets()
         
         print(f"Training with {len(texts)} samples")
         self.train(texts, labels)

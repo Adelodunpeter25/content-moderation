@@ -30,6 +30,56 @@ class DataLoader:
         
         return texts, labels
     
+    def load_enron_spam_dataset(self) -> Tuple[list[str], list[int]]:
+        """Load Enron email spam dataset.
+        
+        Returns:
+            Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
+        """
+        # Placeholder for Enron dataset - requires more complex processing
+        print("Enron dataset not implemented yet")
+        return self.load_sms_spam_dataset()
+    
+    def load_youtube_spam_dataset(self) -> Tuple[list[str], list[int]]:
+        """Load YouTube spam comments dataset.
+        
+        Returns:
+            Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
+        """
+        file_path = self.data_dir / "youtube_spam.csv"
+        
+        if not file_path.exists():
+            self._download_youtube_dataset(file_path)
+        
+        df = pd.read_csv(file_path)
+        texts = df['CONTENT'].tolist()
+        labels = df['CLASS'].tolist()
+        
+        return texts, labels
+    
+    def load_combined_datasets(self) -> Tuple[list[str], list[int]]:
+        """Load and combine multiple spam datasets.
+        
+        Returns:
+            Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
+        """
+        print("Loading combined datasets...")
+        
+        # Load SMS dataset
+        sms_texts, sms_labels = self.load_sms_spam_dataset()
+        print(f"Loaded {len(sms_texts)} SMS samples")
+        
+        # Load YouTube dataset
+        youtube_texts, youtube_labels = self.load_youtube_spam_dataset()
+        print(f"Loaded {len(youtube_texts)} YouTube samples")
+        
+        # Combine datasets
+        combined_texts = sms_texts + youtube_texts
+        combined_labels = sms_labels + youtube_labels
+        
+        print(f"Total combined samples: {len(combined_texts)}")
+        return combined_texts, combined_labels
+    
     def _download_sms_dataset(self, file_path: Path) -> None:
         """Download SMS Spam Collection dataset."""
         url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip"
@@ -56,3 +106,27 @@ class DataLoader:
                 df.to_csv(file_path, index=False)
         
         print(f"Dataset saved to {file_path}")
+    
+    def _download_youtube_dataset(self, file_path: Path) -> None:
+        """Download YouTube spam comments dataset."""
+        url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00380/YouTube-Spam-Collection-v1.zip"
+        
+        print("Downloading YouTube spam dataset...")
+        response = requests.get(url)
+        
+        import zipfile
+        import io
+        
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
+            # Combine all CSV files in the zip
+            all_data = []
+            for file_name in zip_file.namelist():
+                if file_name.endswith('.csv'):
+                    with zip_file.open(file_name) as csv_file:
+                        df = pd.read_csv(csv_file)
+                        all_data.append(df)
+            
+            combined_df = pd.concat(all_data, ignore_index=True)
+            combined_df.to_csv(file_path, index=False)
+        
+        print(f"YouTube dataset saved to {file_path}")

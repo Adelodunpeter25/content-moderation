@@ -13,3 +13,4 @@ env/
 *.pkl
 *.joblib
 .amazonq
+*.csv
