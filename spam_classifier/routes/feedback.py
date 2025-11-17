@@ -4,7 +4,7 @@ from spam_classifier.schemas.feedback import FeedbackRequest, FeedbackResponse, 
 from spam_classifier.services.classifier import SpamClassifier
 from core.logging import logger
 
-router = APIRouter(prefix="/feedback", tags=["feedback"])
+router = APIRouter(prefix="/feedback", tags=["Feedback"])
 classifier = SpamClassifier()
 
 @router.post("/submit", response_model=FeedbackResponse)
