@@ -1,7 +1,7 @@
 """Text preprocessing service for spam classification."""
 import re
 import unicodedata
-from typing import str
+
 
 from core.logging import logger
 
