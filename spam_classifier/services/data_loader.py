@@ -30,7 +30,7 @@ class DataLoader:
         df = pd.read_csv(file_path, encoding='latin-1')
         df = df[['v1', 'v2']].rename(columns={'v1': 'label', 'v2': 'text'})
         
-        texts = df['text'].tolist()
+        texts = [str(text) for text in df['text'].tolist()]
         labels = [1 if label == 'spam' else 0 for label in df['label']]
         
         return texts, labels
@@ -57,7 +57,7 @@ class DataLoader:
             self._download_youtube_dataset(file_path)
         
         df = pd.read_csv(file_path, encoding='latin-1')
-        texts = df['CONTENT'].tolist()
+        texts = [str(text) for text in df['CONTENT'].tolist()]
         labels = df['CLASS'].tolist()
         
         return texts, labels
@@ -94,7 +94,7 @@ class DataLoader:
             text_col = df.columns[0]
             label_col = df.columns[1]
         
-        texts = df[text_col].tolist()
+        texts = [str(text) for text in df[text_col].tolist()]
         labels = [1 if str(label).lower() == 'spam' else 0 for label in df[label_col]]
         
         return texts, labels
