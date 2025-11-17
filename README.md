@@ -2,33 +2,62 @@
 
 A multi-app content moderation system built with FastAPI.
 
+## Features
+
+### 🛡️ **Spam Classification**
+- Advanced ML-based spam detection
+- Multi-dataset training (SMS + YouTube comments)
+- Text preprocessing and normalization
+- User feedback and model retraining
+
+### 🔧 **System Features**
+- Comprehensive logging
+- Health monitoring
+- API documentation
+- Modular architecture for easy expansion
+
 ## Project Structure
 
 ```
 content-moderation/
 ├── core/
 │   ├── app/          # Main FastAPI application
-│   ├── models/       # Shared database models
-│   ├── schemas/      # Shared Pydantic schemas
-│   └── utils/        # Shared utilities
-├── spam-classifier/  # Spam detection module
-│   ├── models/       # ML models
-│   ├── routes/       # API endpoints
-│   ├── schemas/      # Request/response schemas
-│   └── services/     # Business logic
-└── requirements.txt
+│   ├── routes/       # Health and system endpoints
+│   └── logging.py    # Central logging configuration
+├── spam_classifier/
+│   ├── routes/       # Spam classification & feedback APIs
+│   ├── schemas/      # Request/response models
+│   └── services/     # ML services and business logic
+├── data/             # Model files and datasets
+├── logs/             # Application logs
+└── pyproject.toml    # Dependencies and configuration
 ```
 
-## Setup
+## Quick Start
+
+### Installation
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Install dependencies
+uv sync
 ```
 
-## Run
+### Running
 
 ```bash
-uvicorn core.app.main:app --reload
+# Development server
+make dev
+
+# Production server
+make run
+
+# View all commands
+make help
 ```
+
+## API Endpoints
+
+- `GET /health` - System health status
+- `POST /api/v1/spam/classify` - Classify text as spam
+- `POST /api/v1/feedback/submit` - Submit user feedback
+- `POST /api/v1/feedback/retrain` - Retrain model
