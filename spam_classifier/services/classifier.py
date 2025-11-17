@@ -1,8 +1,11 @@
 """Spam classification service using machine learning."""
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
 import joblib
 import os
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+from .data_loader import DataLoader
 
 class SpamClassifier:
     """Machine learning-based spam text classifier."""
@@ -42,22 +45,9 @@ class SpamClassifier:
         return bool(prediction), float(confidence)
     
     def _load_or_create_model(self) -> None:
-        """Load existing model or create one with sample data."""
-        # Simple training data for demo
-        spam_texts = [
-            "Free money now click here",
-            "You won a prize claim now",
-            "Limited time offer act fast",
-            "Urgent response needed"
-        ]
-        ham_texts = [
-            "Meeting scheduled for tomorrow",
-            "Thanks for your help",
-            "How are you doing today",
-            "Project update attached"
-        ]
+        """Load existing model or create one with real dataset."""
+        loader = DataLoader()
+        texts, labels = loader.load_sms_spam_dataset()
         
-        texts = spam_texts + ham_texts
-        labels = [1] * len(spam_texts) + [0] * len(ham_texts)
-        
+        print(f"Training with {len(texts)} samples")
         self.train(texts, labels)

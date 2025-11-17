@@ -5,7 +5,7 @@ from spam_classifier.routes import spam
 
 app = FastAPI(
     title="Content Moderation System",
-    description="Multi-app content moderation system with spam classification",
+    description="Multi-app content moderation system",
     version="0.1.0",
     swagger_ui_parameters={"defaultModelsExpandDepth": -1}
 )
