@@ -14,3 +14,4 @@ env/
 *.joblib
 .amazonq
 *.csv
+*.json

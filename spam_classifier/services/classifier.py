@@ -8,31 +8,26 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
 from core.logging import logger
-from .data_loader import DataLoader
+from .feedback_manager import FeedbackManager
+from .model_trainer import ModelTrainer
+from .text_preprocessor import TextPreprocessor
 
 class SpamClassifier:
     """Machine learning-based spam text classifier."""
     
-    def __init__(self, model_name: str = "SpamGuard-v1"):
+    def __init__(self, model_name: str = "SpamGuard-v2"):
         self.model_name = model_name
-        self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-        self.model = MultinomialNB()
+        self.preprocessor = TextPreprocessor()
+        self.feedback_manager = FeedbackManager()
+        self.trainer = ModelTrainer(model_name)
+        self.vectorizer = None
+        self.model = None
         self.is_trained = False
         self.model_path = 'data/spam_model.joblib'
         self.vectorizer_path = 'data/spam_vectorizer.joblib'
         self.metadata_path = 'data/model_metadata.json'
         
-    def train(self, texts: list[str], labels: list[int]) -> None:
-        """Train the spam classifier with text samples and labels.
-        
-        Args:
-            texts: List of text samples
-            labels: List of labels (1 for spam, 0 for ham)
-        """
-        X = self.vectorizer.fit_transform(texts)
-        self.model.fit(X, labels)
-        self.is_trained = True
-        self._save_model()
+
         
     def predict(self, text: str) -> tuple[bool, float]:
         """Predict if text is spam.
@@ -47,7 +42,10 @@ class SpamClassifier:
             if not self._load_model():
                 self._load_or_create_model()
         
-        X = self.vectorizer.transform([text])
+        # Preprocess text
+        processed_text = self.preprocessor.preprocess(text)
+        
+        X = self.vectorizer.transform([processed_text])
         prediction = self.model.predict(X)[0]
         confidence = self.model.predict_proba(X)[0].max()
         
@@ -55,11 +53,39 @@ class SpamClassifier:
     
     def _load_or_create_model(self) -> None:
         """Load existing model or create one with combined datasets."""
-        loader = DataLoader()
-        texts, labels = loader.load_combined_datasets()
+        metrics = self.trainer.train_initial_model()
+        self.vectorizer = self.trainer.vectorizer
+        self.model = self.trainer.model
+        self.is_trained = True
+        logger.info(f"Model '{self.model_name}' trained with accuracy: {metrics['accuracy']:.3f}")
+    
+    def record_feedback(self, text: str, predicted_spam: bool, actual_spam: bool, 
+                      confidence: float, user_id: str = "anonymous") -> None:
+        """Record user feedback for model improvement.
         
-        logger.info(f"Training '{self.model_name}' with {len(texts)} samples")
-        self.train(texts, labels)
+        Args:
+            text: The text that was classified
+            predicted_spam: What the model predicted
+            actual_spam: What the user says it actually is
+            confidence: Model's confidence in prediction
+            user_id: ID of user providing feedback
+        """
+        self.feedback_manager.record_feedback(
+            text, predicted_spam, actual_spam, confidence, user_id
+        )
+    
+    def retrain_model(self) -> dict:
+        """Retrain model with user feedback.
+        
+        Returns:
+            Retraining results and metrics
+        """
+        metrics = self.trainer.retrain_with_feedback()
+        if metrics.get('status') != 'insufficient_feedback':
+            self.vectorizer = self.trainer.vectorizer
+            self.model = self.trainer.model
+            logger.info(f"Model retrained with accuracy: {metrics['accuracy']:.3f}")
+        return metrics
     
     def _save_model(self) -> None:
         """Save trained model, vectorizer, and metadata."""

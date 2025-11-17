@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from core.logging import logger
 from core.routes import health
-from spam_classifier.routes import spam
+from spam_classifier.routes import spam, feedback
 
 app = FastAPI(
     title="Content Moderation System",
@@ -13,5 +13,6 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(spam.router, prefix="/api/v1")
+app.include_router(feedback.router, prefix="/api/v1")
 
 logger.info("Content Moderation System started")
