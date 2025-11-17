@@ -4,6 +4,9 @@ import requests
 from pathlib import Path
 from typing import Tuple
 
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
+
 class DataLoader:
     """Loads and prepares spam classification datasets."""
     
@@ -57,6 +60,25 @@ class DataLoader:
         
         return texts, labels
     
+    def load_kaggle_email_dataset(self) -> Tuple[list[str], list[int]]:
+        """Load Kaggle email spam dataset.
+        
+        Returns:
+            Tuple of (texts, labels) where labels are 1 for spam, 0 for ham
+        """
+        print("Loading Kaggle email spam dataset...")
+        
+        df = kagglehub.load_dataset(
+            KaggleDatasetAdapter.PANDAS,
+            "balaka18/email-spam-classification-dataset-csv",
+            ""
+        )
+        
+        texts = df['text'].tolist()
+        labels = [1 if label == 'spam' else 0 for label in df['label']]
+        
+        return texts, labels
+    
     def load_combined_datasets(self) -> Tuple[list[str], list[int]]:
         """Load and combine multiple spam datasets.
         
@@ -73,9 +95,13 @@ class DataLoader:
         youtube_texts, youtube_labels = self.load_youtube_spam_dataset()
         print(f"Loaded {len(youtube_texts)} YouTube samples")
         
+        # Load Kaggle email dataset
+        kaggle_texts, kaggle_labels = self.load_kaggle_email_dataset()
+        print(f"Loaded {len(kaggle_texts)} Kaggle email samples")
+        
         # Combine datasets
-        combined_texts = sms_texts + youtube_texts
-        combined_labels = sms_labels + youtube_labels
+        combined_texts = sms_texts + youtube_texts + kaggle_texts
+        combined_labels = sms_labels + youtube_labels + kaggle_labels
         
         print(f"Total combined samples: {len(combined_texts)}")
         return combined_texts, combined_labels
