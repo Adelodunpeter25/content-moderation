@@ -14,6 +14,8 @@ class SpamClassifier:
         self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
         self.model = MultinomialNB()
         self.is_trained = False
+        self.model_path = 'data/spam_model.joblib'
+        self.vectorizer_path = 'data/spam_vectorizer.joblib'
         
     def train(self, texts: list[str], labels: list[int]) -> None:
         """Train the spam classifier with text samples and labels.
@@ -25,6 +27,7 @@ class SpamClassifier:
         X = self.vectorizer.fit_transform(texts)
         self.model.fit(X, labels)
         self.is_trained = True
+        self._save_model()
         
     def predict(self, text: str) -> tuple[bool, float]:
         """Predict if text is spam.
@@ -36,7 +39,8 @@ class SpamClassifier:
             Tuple of (is_spam, confidence_score)
         """
         if not self.is_trained:
-            self._load_or_create_model()
+            if not self._load_model():
+                self._load_or_create_model()
         
         X = self.vectorizer.transform([text])
         prediction = self.model.predict(X)[0]
@@ -51,3 +55,23 @@ class SpamClassifier:
         
         print(f"Training with {len(texts)} samples")
         self.train(texts, labels)
+    
+    def _save_model(self) -> None:
+        """Save trained model and vectorizer."""
+        os.makedirs('data', exist_ok=True)
+        joblib.dump(self.model, self.model_path)
+        joblib.dump(self.vectorizer, self.vectorizer_path)
+    
+    def _load_model(self) -> bool:
+        """Load saved model and vectorizer.
+        
+        Returns:
+            True if model loaded successfully, False otherwise
+        """
+        if os.path.exists(self.model_path) and os.path.exists(self.vectorizer_path):
+            self.model = joblib.load(self.model_path)
+            self.vectorizer = joblib.load(self.vectorizer_path)
+            self.is_trained = True
+            print("Loaded saved model")
+            return True
+        return False
