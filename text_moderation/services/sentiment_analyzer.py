@@ -8,19 +8,10 @@ class SentimentAnalyzer:
     """Analyzes sentiment and emotional tone of text."""
     
     def __init__(self):
-        # Positive sentiment words
-        self.positive_words = [
-            "good", "great", "excellent", "amazing", "wonderful", "fantastic",
-            "love", "like", "enjoy", "happy", "pleased", "satisfied",
-            "awesome", "brilliant", "perfect", "outstanding", "superb"
-        ]
+        from .dataset_loader import ModerationDatasetLoader
         
-        # Negative sentiment words
-        self.negative_words = [
-            "bad", "terrible", "awful", "horrible", "disgusting", "hate",
-            "dislike", "angry", "frustrated", "disappointed", "sad",
-            "annoying", "stupid", "worst", "useless", "pathetic"
-        ]
+        self.dataset_loader = ModerationDatasetLoader()
+        self.positive_words, self.negative_words = self._load_sentiment_words()
         
         # Intensifiers
         self.intensifiers = [
@@ -39,6 +30,38 @@ class SentimentAnalyzer:
         self.negative_pattern = re.compile(r'\b(?:' + '|'.join(self.negative_words) + r')\b', re.IGNORECASE)
         self.intensifier_pattern = re.compile(r'\b(?:' + '|'.join(self.intensifiers) + r')\b', re.IGNORECASE)
         self.negation_pattern = re.compile(r'\b(?:' + '|'.join(self.negations) + r')\b', re.IGNORECASE)
+    
+    def _load_sentiment_words(self) -> Tuple[List[str], List[str]]:
+        """Load sentiment words from dataset or use defaults."""
+        try:
+            texts, labels = self.dataset_loader.load_sentiment_dataset()
+            
+            # Extract words from positive and negative examples (simplified)
+            positive_texts = [texts[i] for i, label in enumerate(labels) if label == 'positive']
+            negative_texts = [texts[i] for i, label in enumerate(labels) if label == 'negative']
+            
+            # For now, use default words but could extract from examples
+            positive_words = [
+                "good", "great", "excellent", "amazing", "wonderful", "fantastic",
+                "love", "like", "enjoy", "happy", "pleased", "satisfied",
+                "awesome", "brilliant", "perfect", "outstanding", "superb"
+            ]
+            
+            negative_words = [
+                "bad", "terrible", "awful", "horrible", "disgusting", "hate",
+                "dislike", "angry", "frustrated", "disappointed", "sad",
+                "annoying", "stupid", "worst", "useless", "pathetic"
+            ]
+            
+            return positive_words, negative_words
+            
+        except Exception as e:
+            logger.warning(f"Could not load sentiment dataset: {e}. Using default words.")
+            return [
+                "good", "great", "love", "like", "happy", "excellent"
+            ], [
+                "bad", "hate", "terrible", "awful", "sad", "angry"
+            ]
     
     def analyze_sentiment(self, text: str) -> Tuple[str, float, float]:
         """Analyze sentiment of text.

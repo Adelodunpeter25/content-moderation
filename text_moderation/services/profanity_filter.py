@@ -8,11 +8,10 @@ class ProfanityFilter:
     """Filters profanity and inappropriate language."""
     
     def __init__(self):
-        # Common profanity words (mild examples for demonstration)
-        self.profanity_words = [
-            "damn", "hell", "crap", "stupid", "idiot", "moron",
-            "dumb", "suck", "sucks", "wtf", "omg", "lmao"
-        ]
+        from .dataset_loader import ModerationDatasetLoader
+        
+        self.dataset_loader = ModerationDatasetLoader()
+        self.profanity_words = self._load_profanity_words()
         
         # Leetspeak and obfuscation patterns
         self.leetspeak_map = {
@@ -22,6 +21,17 @@ class ProfanityFilter:
         
         # Compile regex patterns
         self.profanity_pattern = self._build_profanity_pattern()
+    
+    def _load_profanity_words(self) -> List[str]:
+        """Load profanity words from dataset or use defaults."""
+        try:
+            return self.dataset_loader.load_profanity_wordlist()
+        except Exception as e:
+            logger.warning(f"Could not load profanity dataset: {e}. Using default words.")
+            return [
+                "damn", "hell", "crap", "stupid", "idiot", "moron",
+                "dumb", "suck", "sucks", "wtf", "omg", "lmao"
+            ]
         
     def _build_profanity_pattern(self) -> re.Pattern:
         """Build regex pattern for profanity detection."""

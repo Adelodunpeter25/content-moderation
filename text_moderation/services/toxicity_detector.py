@@ -8,34 +8,56 @@ class ToxicityDetector:
     """Detects toxic content like hate speech, harassment, and threats."""
     
     def __init__(self):
-        # Toxicity categories and keywords
-        self.toxic_patterns = {
-            "hate_speech": [
-                "hate", "racist", "bigot", "nazi", "supremacist",
-                "inferior", "subhuman", "scum", "vermin"
-            ],
-            "harassment": [
-                "kill yourself", "kys", "die", "suicide", "harm yourself",
-                "worthless", "pathetic", "loser", "failure"
-            ],
-            "threats": [
-                "kill you", "murder", "hurt you", "beat you up",
-                "find you", "come for you", "destroy you"
-            ],
-            "sexual_harassment": [
-                "rape", "assault", "molest", "grope", "harass sexually"
-            ],
-            "bullying": [
-                "ugly", "fat", "stupid", "retard", "freak",
-                "nobody likes you", "everyone hates you"
-            ]
-        }
+        from .dataset_loader import ModerationDatasetLoader
+        
+        self.dataset_loader = ModerationDatasetLoader()
+        self.toxic_patterns = self._load_toxic_patterns()
+        self.training_data = None
         
         # Compile patterns for better performance
         self.compiled_patterns = {}
         for category, words in self.toxic_patterns.items():
             pattern = r'\b(?:' + '|'.join(re.escape(word) for word in words) + r')\b'
             self.compiled_patterns[category] = re.compile(pattern, re.IGNORECASE)
+    
+    def _load_toxic_patterns(self) -> dict:
+        """Load toxicity patterns from dataset or use defaults."""
+        try:
+            # Try to load from dataset
+            texts, labels = self.dataset_loader.load_toxicity_dataset()
+            
+            # Extract patterns from toxic examples (simplified approach)
+            toxic_texts = [texts[i] for i, label in enumerate(labels) if label == 1]
+            
+            # For now, use default patterns but could train ML model here
+            return {
+                "hate_speech": [
+                    "hate", "racist", "bigot", "nazi", "supremacist",
+                    "inferior", "subhuman", "scum", "vermin"
+                ],
+                "harassment": [
+                    "kill yourself", "kys", "die", "suicide", "harm yourself",
+                    "worthless", "pathetic", "loser", "failure"
+                ],
+                "threats": [
+                    "kill you", "murder", "hurt you", "beat you up",
+                    "find you", "come for you", "destroy you"
+                ],
+                "sexual_harassment": [
+                    "rape", "assault", "molest", "grope", "harass sexually"
+                ],
+                "bullying": [
+                    "ugly", "fat", "stupid", "retard", "freak",
+                    "nobody likes you", "everyone hates you"
+                ]
+            }
+        except Exception as e:
+            logger.warning(f"Could not load toxicity dataset: {e}. Using default patterns.")
+            return {
+                "general_toxic": [
+                    "hate", "stupid", "idiot", "kill", "die", "worthless"
+                ]
+            }
     
     def detect_toxicity(self, text: str) -> Tuple[bool, float, List[str]]:
         """Detect toxicity in text.
