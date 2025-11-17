@@ -2,7 +2,7 @@
 import pandas as pd
 import requests
 from pathlib import Path
-from typing import tuple
+from typing import Tuple
 
 class DataLoader:
     """Loads and prepares spam classification datasets."""
@@ -11,7 +11,7 @@ class DataLoader:
         self.data_dir = Path("data")
         self.data_dir.mkdir(exist_ok=True)
     
-    def load_sms_spam_dataset(self) -> tuple[list[str], list[int]]:
+    def load_sms_spam_dataset(self) -> Tuple[list[str], list[int]]:
         """Load SMS Spam Collection dataset.
         
         Returns:
