@@ -51,7 +51,7 @@ class DataLoader:
         if not file_path.exists():
             self._download_youtube_dataset(file_path)
         
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path, encoding='latin-1')
         texts = df['CONTENT'].tolist()
         labels = df['CLASS'].tolist()
         
@@ -123,7 +123,7 @@ class DataLoader:
             for file_name in zip_file.namelist():
                 if file_name.endswith('.csv'):
                     with zip_file.open(file_name) as csv_file:
-                        df = pd.read_csv(csv_file)
+                        df = pd.read_csv(csv_file, encoding='latin-1')
                         all_data.append(df)
             
             combined_df = pd.concat(all_data, ignore_index=True)
