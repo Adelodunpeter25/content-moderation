@@ -26,8 +26,8 @@ class ModerationDatasetLoader:
             # Load Jigsaw Toxic Comment Classification Challenge dataset
             dataset = load_dataset("unitary/toxic-bert", split="train")
             
-            texts = dataset['text']
-            labels = dataset['toxic']
+            texts = list(dataset['text'])
+            labels = list(dataset['toxic'])
             
             logger.info(f"Loaded {len(texts)} samples from Jigsaw toxicity dataset")
             return texts, labels
@@ -36,7 +36,7 @@ class ModerationDatasetLoader:
             logger.warning(f"Failed to load Jigsaw dataset: {e}. Falling back to alternative.")
             # Fallback to Civil Comments dataset
             dataset = load_dataset("google/civil_comments", split="train[:10000]")
-            texts = dataset['text']
+            texts = list(dataset['text'])
             labels = [1 if row['toxicity'] > 0.5 else 0 for row in dataset]
             
             logger.info(f"Loaded {len(texts)} samples from Civil Comments dataset")
@@ -54,8 +54,8 @@ class ModerationDatasetLoader:
             # Load HatEval dataset
             dataset = load_dataset("hateval", "english", split="train")
             
-            texts = dataset['text']
-            labels = dataset['HS']  # Hate Speech binary label
+            texts = list(dataset['text'])
+            labels = list(dataset['HS'])  # Hate Speech binary label
             
             logger.info(f"Loaded {len(texts)} samples from HatEval dataset")
             return texts, labels
@@ -64,7 +64,7 @@ class ModerationDatasetLoader:
             logger.warning(f"Failed to load HatEval dataset: {e}. Using alternative.")
             # Fallback to Davidson et al. hate speech dataset
             dataset = load_dataset("ucberkeley-dlab/measuring-hate-speech", split="train[:5000]")
-            texts = dataset['text']
+            texts = list(dataset['text'])
             labels = [1 if row['hate_speech_score'] > 0.5 else 0 for row in dataset]
             
             logger.info(f"Loaded {len(texts)} samples from hate speech dataset")
@@ -82,8 +82,8 @@ class ModerationDatasetLoader:
             # Load OffensEval dataset
             dataset = load_dataset("cardiffnlp/tweet_eval", "offensive", split="train")
             
-            texts = dataset['text']
-            labels = dataset['label']
+            texts = list(dataset['text'])
+            labels = list(dataset['label'])
             
             logger.info(f"Loaded {len(texts)} samples from OffensEval dataset")
             return texts, labels
@@ -92,8 +92,8 @@ class ModerationDatasetLoader:
             logger.warning(f"Failed to load OffensEval dataset: {e}. Using Founta dataset.")
             # Fallback to Founta et al. dataset
             dataset = load_dataset("tweet_eval", "offensive", split="train")
-            texts = dataset['text']
-            labels = dataset['label']
+            texts = list(dataset['text'])
+            labels = list(dataset['label'])
             
             logger.info(f"Loaded {len(texts)} samples from offensive language dataset")
             return texts, labels
@@ -109,7 +109,7 @@ class ModerationDatasetLoader:
         # Load Stanford Sentiment Treebank
         dataset = load_dataset("sst2", split="train")
         
-        texts = dataset['sentence']
+        texts = list(dataset['sentence'])
         labels = ['negative' if label == 0 else 'positive' for label in dataset['label']]
         
         logger.info(f"Loaded {len(texts)} samples from SST-2 sentiment dataset")
@@ -129,7 +129,7 @@ class ModerationDatasetLoader:
         offensive_texts, offensive_labels = self.load_offensive_language_dataset()
         
         # Combine datasets
-        all_texts = toxicity_texts + hate_texts + offensive_texts
+        all_texts = list(toxicity_texts) + list(hate_texts) + list(offensive_texts)
         
         # Create multi-label structure
         multi_labels = []
