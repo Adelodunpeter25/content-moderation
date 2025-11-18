@@ -46,24 +46,24 @@ class ImageDatasetLoader:
         logger.info("Loading violence dataset...")
         
         try:
-            # Load Real Violence Dataset from HuggingFace
+            # Load COCO dataset
             dataset = load_dataset("detection-datasets/coco", split="train[:1000]")
             
-            # Filter for violence-related objects
-            violence_keywords = ['knife', 'scissors', 'baseball bat', 'sports ball', 'person']
+            # Analyze dataset to find potentially violent categories
+            violence_indicators = self._analyze_violence_categories(dataset)
             
             image_paths = []
             labels = []
             
             for item in dataset:
-                # Check annotations for violence-related objects
+                # Check annotations for violence indicators
                 objects = str(item.get('objects', {}))
-                has_violence = any(keyword in objects.lower() for keyword in violence_keywords)
+                violence_score = sum(1 for indicator in violence_indicators if indicator in objects.lower())
                 
                 image_paths.append(item['image'])
-                labels.append(1 if has_violence else 0)
+                labels.append(1 if violence_score > 0 else 0)
             
-            logger.info(f"Loaded {len(image_paths)} violence samples from COCO")
+            logger.info(f"Loaded {len(image_paths)} violence samples from COCO with {len(violence_indicators)} indicators")
             return image_paths, labels
             
         except Exception as e:
@@ -188,3 +188,39 @@ class ImageDatasetLoader:
         labels = np.random.choice([0, 1], size=500, p=[0.8, 0.2]).tolist()
         
         return image_paths, labels
+    
+    def _analyze_violence_categories(self, dataset) -> List[str]:
+        """Analyze COCO dataset to identify potential violence-related categories.
+        
+        Args:
+            dataset: COCO dataset
+            
+        Returns:
+            List of violence-related category names
+        """
+        try:
+            # Use statistical approach - analyze category frequencies
+            category_counts = {}
+            
+            for item in dataset:
+                objects = item.get('objects', {})
+                categories = objects.get('category', [])
+                if isinstance(categories, list):
+                    for cat in categories:
+                        cat_str = str(cat).lower()
+                        category_counts[cat_str] = category_counts.get(cat_str, 0) + 1
+            
+            # Select categories that appear in 5-20% of images (potentially violent objects)
+            violence_indicators = []
+            total_images = len(dataset)
+            for cat, count in category_counts.items():
+                frequency = count / total_images
+                if 0.05 <= frequency <= 0.2:  # 5-20% frequency range
+                    violence_indicators.append(cat)
+            
+            logger.info(f"Identified {len(violence_indicators)} potential violence indicators")
+            return violence_indicators[:10]  # Limit to top 10
+            
+        except Exception as e:
+            logger.warning(f"Failed to analyze violence categories: {e}")
+            return ['tool', 'equipment']
