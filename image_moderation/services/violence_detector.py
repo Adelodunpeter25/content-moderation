@@ -35,11 +35,17 @@ class ViolenceDetector:
             self._train_model()
     
     def _train_model(self) -> None:
-        """Train violence detection model."""
+        """Train violence detection model using real datasets."""
         logger.info("Training violence detection model...")
         
-        # Generate training data based on violence indicators
-        X_train, y_train = self._generate_training_data()
+        from .dataset_loader import ImageDatasetLoader
+        dataset_loader = ImageDatasetLoader()
+        
+        # Load real violence dataset
+        image_paths, labels = dataset_loader.load_violence_dataset()
+        
+        # Extract features from real images
+        X_train, y_train = self._extract_features_from_dataset(image_paths, labels)
         
         # Train model
         self.scaler = StandardScaler()
@@ -54,24 +60,58 @@ class ViolenceDetector:
         
         logger.info("Violence detection model trained and saved")
     
-    def _generate_training_data(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate synthetic training data for violence detection."""
-        n_samples = 1000
-        n_features = 15
+    def _extract_features_from_dataset(self, image_paths: List[str], labels: List[int]) -> Tuple[np.ndarray, np.ndarray]:
+        """Extract features from real violence dataset.
         
-        # Generate features
-        X = np.random.rand(n_samples, n_features)
+        Args:
+            image_paths: List of image paths or URLs
+            labels: Corresponding labels
+            
+        Returns:
+            Feature matrix and labels
+        """
+        features_list = []
+        valid_labels = []
         
-        # Create labels based on violence indicators
-        violence_probability = (
-            X[:, 0] * 0.4 +  # Red color intensity (blood)
-            X[:, 1] * 0.3 +  # Sharp edge density (weapons)
-            X[:, 2] * 0.2 +  # Motion blur (action)
-            X[:, 3] * 0.1    # Dark regions (shadows)
-        )
+        max_samples = min(800, len(image_paths))
         
-        y = (violence_probability > 0.7).astype(int)
+        for i, (image_path, label) in enumerate(zip(image_paths[:max_samples], labels[:max_samples])):
+            try:
+                # Handle different image path types
+                if isinstance(image_path, str) and image_path.startswith('http'):
+                    import requests
+                    response = requests.get(image_path, timeout=10)
+                    image_data = response.content
+                elif hasattr(image_path, 'save'):
+                    from io import BytesIO
+                    buffer = BytesIO()
+                    image_path.save(buffer, format='JPEG')
+                    image_data = buffer.getvalue()
+                else:
+                    continue
+                
+                features = self._extract_features(image_data)
+                features_list.append(features)
+                valid_labels.append(label)
+                
+                if (i + 1) % 50 == 0:
+                    logger.info(f"Processed {i + 1}/{max_samples} violence images")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to process violence image {i}: {e}")
+                continue
         
+        if not features_list:
+            logger.warning("No valid violence images processed, using fallback")
+            return self._generate_fallback_data()
+        
+        return np.array(features_list), np.array(valid_labels)
+    
+    def _generate_fallback_data(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Generate fallback data when real dataset fails."""
+        n_samples = 400
+        X = np.random.rand(n_samples, 15)
+        y = np.random.choice([0, 1], size=n_samples, p=[0.8, 0.2])
         return X, y
     
     def detect_violence(self, image_data: bytes) -> Tuple[bool, float, str]:

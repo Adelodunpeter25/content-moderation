@@ -42,16 +42,8 @@ class ImageModerator:
             else:
                 raise ValueError("Either image_url or image_base64 must be provided")
             
-            results = {
-                'is_inappropriate': False,
-                'confidence': 0.0,
-                'categories': [],
-                'nsfw_score': 0.0,
-                'violence_score': 0.0,
-                'face_count': 0,
-                'severity': 'safe',
-                'details': {}
-            }
+            # Initialize results dynamically
+            results = self._initialize_results(check_nsfw, check_violence, check_faces)
             
             # NSFW Detection
             if check_nsfw:
@@ -109,6 +101,41 @@ class ImageModerator:
                 'severity': 'unknown',
                 'details': {'error': str(e)}
             }
+    
+    def _initialize_results(self, check_nsfw: bool, check_violence: bool, check_faces: bool) -> Dict:
+        """Initialize results structure based on enabled checks.
+        
+        Args:
+            check_nsfw: Whether NSFW checking is enabled
+            check_violence: Whether violence checking is enabled
+            check_faces: Whether face detection is enabled
+            
+        Returns:
+            Initialized results dictionary
+        """
+        results = {
+            'is_inappropriate': False,
+            'confidence': 0.0,
+            'categories': [],
+            'severity': 'safe',
+            'details': {}
+        }
+        
+        # Add fields based on enabled checks
+        if check_nsfw:
+            results['nsfw_score'] = 0.0
+            results['details']['nsfw_categories'] = {}
+        
+        if check_violence:
+            results['violence_score'] = 0.0
+            results['details']['violence_type'] = 'none'
+        
+        if check_faces:
+            results['face_count'] = 0
+            results['details']['faces'] = []
+            results['details']['has_minors'] = False
+        
+        return results
     
     def _calculate_severity(self, results: Dict) -> str:
         """Calculate content severity level.
