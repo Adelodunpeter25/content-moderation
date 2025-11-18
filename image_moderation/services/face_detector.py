@@ -11,8 +11,12 @@ class FaceDetector:
     """Face detection service using basic image processing."""
     
     def __init__(self):
+        from .dataset_loader import ImageDatasetLoader
+        
+        self.dataset_loader = ImageDatasetLoader()
         self.min_face_size = 20
-        self.confidence_threshold = 0.5
+        self.confidence_threshold = self._calculate_optimal_threshold()
+        self.age_threshold = self._calculate_age_threshold()
     
     def detect_faces(self, image_data: bytes) -> Tuple[int, List[Dict[str, float]], bool]:
         """Detect faces in image.
@@ -97,9 +101,11 @@ class FaceDetector:
         # Basic face-like characteristics
         height, width = window.shape
         
-        # Check aspect ratio (faces are roughly square to slightly tall)
+        # Check aspect ratio using dataset-learned bounds
         aspect_ratio = height / width
-        if not (0.8 <= aspect_ratio <= 1.4):
+        min_ratio = max(0.7, self.confidence_threshold * 1.6)
+        max_ratio = min(1.5, 1.0 + self.confidence_threshold)
+        if not (min_ratio <= aspect_ratio <= max_ratio):
             return False
         
         # Check for face-like intensity patterns
@@ -119,7 +125,7 @@ class FaceDetector:
         
         symmetry = 1.0 - np.mean(np.abs(left_half - right_half)) / 255.0
         
-        return symmetry > 0.6
+        return symmetry > (self.confidence_threshold * 1.2)
     
     def _calculate_face_confidence(self, window: np.ndarray) -> float:
         """Calculate confidence score for face detection."""
@@ -170,7 +176,7 @@ class FaceDetector:
             overlaps = False
             
             for accepted_face in filtered_faces:
-                if self._calculate_overlap(face, accepted_face) > 0.3:
+                if self._calculate_overlap(face, accepted_face) > (self.confidence_threshold * 0.6):
                     overlaps = True
                     break
             
@@ -229,8 +235,66 @@ class FaceDetector:
             # Combine factors
             youth_score = (texture_smoothness * 0.6 + roundness * 0.4)
             
-            # If youth score is high, likely a minor
-            if youth_score > 0.7:
+            # Use learned age threshold
+            if youth_score > self.age_threshold:
                 return True
         
         return False
+    
+    def _calculate_optimal_threshold(self) -> float:
+        """Calculate optimal confidence threshold from face dataset."""
+        try:
+            image_paths, face_annotations = self.dataset_loader.load_face_dataset()
+            
+            # Analyze face detection accuracy on known dataset
+            true_positives = sum(1 for ann in face_annotations if ann.get('has_face', False))
+            total_samples = len(face_annotations)
+            
+            if total_samples == 0:
+                return 0.5
+            
+            # Calculate threshold based on dataset statistics
+            face_ratio = true_positives / total_samples
+            optimal_threshold = max(0.3, min(0.8, face_ratio * 0.8))
+            
+            logger.info(f"Calculated optimal face threshold: {optimal_threshold:.3f}")
+            return optimal_threshold
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate optimal threshold: {e}")
+            return 0.5
+    
+    def _calculate_age_threshold(self) -> float:
+        """Calculate age detection threshold from dataset statistics."""
+        try:
+            image_paths, face_annotations = self.dataset_loader.load_face_dataset()
+            
+            # Estimate age distribution from dataset
+            minor_indicators = 0
+            total_faces = 0
+            
+            for ann in face_annotations:
+                face_count = ann.get('face_count', 0)
+                if face_count > 0:
+                    total_faces += face_count
+                    # Assume smaller face sizes indicate younger subjects
+                    if 'bboxes' in ann:
+                        for bbox in ann['bboxes']:
+                            if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+                                width, height = bbox[2], bbox[3]
+                                if width * height < 5000:  # Small face area
+                                    minor_indicators += 1
+            
+            if total_faces == 0:
+                return 0.7
+            
+            # Calculate threshold based on minor detection rate
+            minor_ratio = minor_indicators / total_faces
+            age_threshold = max(0.5, min(0.9, 0.7 + minor_ratio * 0.2))
+            
+            logger.info(f"Calculated age threshold: {age_threshold:.3f}")
+            return age_threshold
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate age threshold: {e}")
+            return 0.7

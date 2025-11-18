@@ -212,17 +212,25 @@ class ViolenceDetector:
             return np.zeros(15)
     
     def _classify_violence_type(self, features: np.ndarray) -> str:
-        """Classify type of violence based on features."""
-        # Simple heuristic classification
-        red_intensity = features[0]
-        edge_density = features[3]
-        darkness = features[8]
+        """Classify type of violence based on model feature importance."""
+        if not hasattr(self.model, 'feature_importances_'):
+            return "violence_detected"
         
-        if red_intensity > 0.7:
-            return "blood/gore"
-        elif edge_density > 0.6:
-            return "weapons"
-        elif darkness > 0.8:
-            return "threatening"
-        else:
-            return "general_violence"
+        # Use model's feature importance to determine violence type
+        feature_importance = self.model.feature_importances_
+        
+        # Find most important feature categories
+        color_importance = np.mean(feature_importance[:3])  # Color features
+        edge_importance = np.mean(feature_importance[3:6])  # Edge features
+        texture_importance = np.mean(feature_importance[6:10])  # Texture features
+        motion_importance = np.mean(feature_importance[10:13])  # Motion features
+        
+        # Determine type based on highest importance
+        importances = {
+            'blood_gore': color_importance,
+            'weapons': edge_importance,
+            'threatening': texture_importance,
+            'action_violence': motion_importance
+        }
+        
+        return max(importances, key=importances.get)
