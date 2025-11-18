@@ -6,9 +6,17 @@ A multi-app content moderation system built with FastAPI.
 
 ### 🛡️ **Spam Classification**
 - Advanced ML-based spam detection
-- Multi-dataset training (SMS + YouTube comments)
+- Multi-dataset training
 - Text preprocessing and normalization
 - User feedback and model retraining
+
+### 🚫 **Text Moderation**
+- ML-based toxicity detection using Jigsaw datasets
+- Hate speech identification with HatEval data
+- Offensive language filtering with OffensEval
+- Sentiment analysis using Stanford Sentiment Treebank
+- Dynamic severity scoring based on model statistics
+- Multi-label content classification
 
 ### 🔧 **System Features**
 - Comprehensive logging
@@ -28,7 +36,12 @@ content-moderation/
 │   ├── routes/       # Spam classification & feedback APIs
 │   ├── schemas/      # Request/response models
 │   └── services/     # ML services and business logic
+├── text_moderation/
+│   ├── routes/       # Text moderation APIs
+│   ├── schemas/      # Request/response models
+│   └── services/     # ML-based moderation services
 ├── data/             # Model files and datasets
+├── tests/            # Comprehensive test suite
 ├── logs/             # Application logs
 └── pyproject.toml    # Dependencies and configuration
 ```
@@ -52,16 +65,20 @@ uv sync
 # Development server
 make dev
 
-# Production server
-make run
-
 # View all commands
 make help
 ```
 
-## API Endpoints
+## Testing
 
-- `GET /health` - System health status
-- `POST /api/v1/spam/classify` - Classify text as spam
-- `POST /api/v1/feedback/submit` - Submit user feedback
-- `POST /api/v1/feedback/retrain` - Retrain model
+```bash
+# Run all tests
+uv run pytest
+
+# Run specific test modules
+uv run pytest tests/spam_classifier/
+uv run pytest tests/text_moderation/
+
+# Run with coverage
+uv run pytest --cov=.
+```
