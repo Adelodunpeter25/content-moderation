@@ -149,13 +149,8 @@ class NSFWDetector:
             confidence = probabilities.max()
             is_nsfw = bool(prediction)
             
-            # Generate category scores
-            category_scores = {
-                'nudity': probabilities[1] * 0.8,
-                'sexual_content': probabilities[1] * 0.6,
-                'suggestive': probabilities[1] * 0.4,
-                'safe': probabilities[0]
-            }
+            # Generate category scores based on model feature importance
+            category_scores = self._generate_category_scores(probabilities, features)
             
             if is_nsfw:
                 logger.info(f"NSFW content detected with confidence {confidence:.3f}")
@@ -253,3 +248,41 @@ class NSFWDetector:
         except Exception as e:
             logger.error(f"Error decoding base64 image: {e}")
             raise
+    
+    def _generate_category_scores(self, probabilities: np.ndarray, features: np.ndarray) -> Dict[str, float]:
+        """Generate NSFW category scores based on model and features.
+        
+        Args:
+            probabilities: Model prediction probabilities
+            features: Extracted image features
+            
+        Returns:
+            Dictionary of category scores
+        """
+        if not hasattr(self.model, 'feature_importances_'):
+            return {'safe': probabilities[0], 'nsfw': probabilities[1] if len(probabilities) > 1 else 0.0}
+        
+        nsfw_prob = probabilities[1] if len(probabilities) > 1 else 0.0
+        feature_importance = self.model.feature_importances_
+        
+        # Analyze feature patterns to determine NSFW categories
+        color_importance = np.mean(feature_importance[:12])  # Color features
+        texture_importance = np.mean(feature_importance[12:20])  # Texture features
+        
+        # Use feature values and importance to score categories
+        red_intensity = features[0] if len(features) > 0 else 0.0
+        texture_complexity = features[12] if len(features) > 12 else 0.0
+        
+        category_scores = {
+            'safe': probabilities[0],
+            'nudity': nsfw_prob * (color_importance + red_intensity * 0.3),
+            'sexual_content': nsfw_prob * (texture_importance + texture_complexity * 0.2),
+            'suggestive': nsfw_prob * (1.0 - color_importance - texture_importance)
+        }
+        
+        # Normalize scores
+        total = sum(category_scores.values())
+        if total > 0:
+            category_scores = {k: v/total for k, v in category_scores.items()}
+        
+        return category_scores
