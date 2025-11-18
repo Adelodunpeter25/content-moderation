@@ -1,5 +1,5 @@
 """NSFW content detection service using specialized datasets."""
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 import numpy as np
 from PIL import Image
 import requests

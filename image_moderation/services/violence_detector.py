@@ -1,5 +1,5 @@
 """Violence detection service for identifying violent imagery."""
-from typing import Tuple
+from typing import Tuple, List
 import numpy as np
 from PIL import Image
 from io import BytesIO

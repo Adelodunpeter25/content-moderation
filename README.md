@@ -18,6 +18,14 @@ A multi-app content moderation system built with FastAPI.
 - Dynamic severity scoring based on model statistics
 - Multi-label content classification
 
+### 🖼️ **Image Moderation**
+- NSFW content detection using specialized datasets
+- Violence and gore identification
+- Face detection and minor protection
+- Dynamic ML-based classification
+- Model-driven threshold calculation
+- Comprehensive image analysis
+
 ### 🔧 **System Features**
 - Comprehensive logging
 - Health monitoring
@@ -40,6 +48,10 @@ content-moderation/
 │   ├── routes/       # Text moderation APIs
 │   ├── schemas/      # Request/response models
 │   └── services/     # ML-based moderation services
+├── image_moderation/
+│   ├── routes/       # Image moderation APIs
+│   ├── schemas/      # Request/response models
+│   └── services/     # ML-based image analysis services
 ├── data/             # Model files and datasets
 ├── tests/            # Comprehensive test suite
 ├── logs/             # Application logs
