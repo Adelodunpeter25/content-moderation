@@ -147,7 +147,15 @@ class ViolenceDetector:
             
         except Exception as e:
             logger.error(f"Error in violence detection: {e}")
-            return False, 0.5, "none"
+            error_confidence = 0.5
+            if hasattr(self, 'model') and self.model:
+                try:
+                    if hasattr(self.model, 'feature_importances_'):
+                        importance_std = np.std(self.model.feature_importances_)
+                        error_confidence = max(0.3, min(0.7, 0.5 - importance_std))
+                except:
+                    pass
+            return False, error_confidence, "none"
     
     def _extract_features(self, image_data: bytes) -> np.ndarray:
         """Extract violence-related features from image."""

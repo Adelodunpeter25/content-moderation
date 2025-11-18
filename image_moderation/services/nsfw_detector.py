@@ -159,7 +159,14 @@ class NSFWDetector:
             
         except Exception as e:
             logger.error(f"Error in NSFW detection: {e}")
-            return False, 0.5, {'safe': 1.0}
+            # Use model-based error confidence if available
+            error_confidence = 0.5
+            if hasattr(self, 'model') and self.model:
+                try:
+                    error_confidence = self._estimate_error_confidence()
+                except:
+                    pass
+            return False, error_confidence, {'safe': 1.0}
     
     def _extract_features(self, image_data: bytes) -> np.ndarray:
         """Extract features from image for classification.
@@ -286,3 +293,18 @@ class NSFWDetector:
             category_scores = {k: v/total for k, v in category_scores.items()}
         
         return category_scores
+    
+    def _estimate_error_confidence(self) -> float:
+        """Estimate confidence for error cases based on model characteristics.
+        
+        Returns:
+            Error confidence score
+        """
+        try:
+            if hasattr(self.model, 'feature_importances_'):
+                # Use feature importance spread as confidence indicator
+                importance_std = np.std(self.model.feature_importances_)
+                return max(0.3, min(0.7, 0.5 - importance_std))
+            return 0.4
+        except:
+            return 0.4
