@@ -1,46 +1,78 @@
 """Toxicity detection service for harmful content."""
-import re
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+import joblib
+from pathlib import Path
 
 from core.logging import logger
 
 class ToxicityDetector:
-    """Detects toxic content like hate speech, harassment, and threats."""
+    """ML-based toxicity detector using specialized datasets."""
     
     def __init__(self):
         from .dataset_loader import ModerationDatasetLoader
         
         self.dataset_loader = ModerationDatasetLoader()
-        self.toxic_patterns = self._load_toxic_patterns()
-        self.training_data = None
+        self.models = {}
+        self.model_dir = Path("data/text_moderation/models")
+        self.model_dir.mkdir(parents=True, exist_ok=True)
         
-        # Compile patterns for better performance
-        self.compiled_patterns = {}
-        for category, words in self.toxic_patterns.items():
-            pattern = r'\b(?:' + '|'.join(re.escape(word) for word in words) + r')\b'
-            self.compiled_patterns[category] = re.compile(pattern, re.IGNORECASE)
+        self._load_or_train_models()
     
-    def _load_toxic_patterns(self) -> dict:
-        """Load toxicity patterns from real dataset."""
-        # Load from dataset
-        texts, labels = self.dataset_loader.load_toxicity_dataset()
-        
-        # Extract patterns from toxic examples
-        toxic_texts = [texts[i] for i, label in enumerate(labels) if label == 1]
-        
-        # Extract common toxic words from dataset
-        toxic_words = set()
-        for text in toxic_texts[:500]:  # Process subset for performance
-            words = text.lower().split()
-            toxic_words.update([word for word in words if len(word) > 3])
-        
-        # Categorize based on common patterns (simplified)
-        return {
-            "general_toxic": list(toxic_words)[:100]  # Use top 100 most common
+    def _load_or_train_models(self) -> None:
+        """Load existing models or train new ones from datasets."""
+        model_files = {
+            'toxicity': self.model_dir / 'toxicity_model.joblib',
+            'hate_speech': self.model_dir / 'hate_speech_model.joblib',
+            'offensive': self.model_dir / 'offensive_model.joblib'
         }
+        
+        # Load existing models if available
+        for model_name, model_path in model_files.items():
+            if model_path.exists():
+                self.models[model_name] = joblib.load(model_path)
+                logger.info(f"Loaded {model_name} model from {model_path}")
+            else:
+                self._train_model(model_name)
+    
+    def _train_model(self, model_type: str) -> None:
+        """Train ML model for specific moderation task.
+        
+        Args:
+            model_type: Type of model to train (toxicity, hate_speech, offensive)
+        """
+        logger.info(f"Training {model_type} model...")
+        
+        # Load appropriate dataset
+        if model_type == 'toxicity':
+            texts, labels = self.dataset_loader.load_toxicity_dataset()
+        elif model_type == 'hate_speech':
+            texts, labels = self.dataset_loader.load_hate_speech_dataset()
+        elif model_type == 'offensive':
+            texts, labels = self.dataset_loader.load_offensive_language_dataset()
+        else:
+            raise ValueError(f"Unknown model type: {model_type}")
+        
+        # Create pipeline with TF-IDF and Logistic Regression
+        pipeline = Pipeline([
+            ('tfidf', TfidfVectorizer(max_features=10000, stop_words='english')),
+            ('classifier', LogisticRegression(random_state=42))
+        ])
+        
+        # Train model
+        pipeline.fit(texts[:10000], labels[:10000])  # Use subset for speed
+        
+        # Save model
+        model_path = self.model_dir / f'{model_type}_model.joblib'
+        joblib.dump(pipeline, model_path)
+        self.models[model_type] = pipeline
+        
+        logger.info(f"Trained and saved {model_type} model to {model_path}")
     
     def detect_toxicity(self, text: str) -> Tuple[bool, float, List[str]]:
-        """Detect toxicity in text.
+        """Detect toxicity using ML models.
         
         Args:
             text: Text to analyze
@@ -52,26 +84,29 @@ class ToxicityDetector:
             return False, 0.0, []
         
         detected_categories = []
-        total_matches = 0
+        max_confidence = 0.0
         
-        # Check each toxicity category
-        for category, pattern in self.compiled_patterns.items():
-            matches = pattern.findall(text.lower())
-            if matches:
-                detected_categories.append(category)
-                total_matches += len(matches)
+        # Check each model
+        for model_name, model in self.models.items():
+            try:
+                prediction = model.predict([text])[0]
+                confidence = model.predict_proba([text])[0].max()
+                
+                if prediction == 1:  # Positive detection
+                    detected_categories.append(model_name)
+                    max_confidence = max(max_confidence, confidence)
+            except Exception as e:
+                logger.warning(f"Error in {model_name} model: {e}")
         
-        # Calculate confidence based on matches and text length
         is_toxic = len(detected_categories) > 0
-        confidence = min(0.9, (total_matches / max(len(text.split()), 1)) * 10) if is_toxic else 0.1
         
         if is_toxic:
-            logger.info(f"Toxic content detected: categories={detected_categories}, confidence={confidence:.3f}")
+            logger.info(f"Toxic content detected: categories={detected_categories}, confidence={max_confidence:.3f}")
         
-        return is_toxic, confidence, detected_categories
+        return is_toxic, max_confidence, detected_categories
     
     def get_severity_score(self, categories: List[str]) -> float:
-        """Get severity score based on detected categories.
+        """Get severity score based on detected categories using dataset statistics.
         
         Args:
             categories: List of detected toxicity categories
@@ -79,16 +114,28 @@ class ToxicityDetector:
         Returns:
             Severity score from 0.0 to 1.0
         """
-        severity_weights = {
-            "threats": 1.0,
-            "hate_speech": 0.9,
-            "sexual_harassment": 0.8,
-            "harassment": 0.7,
-            "bullying": 0.5
-        }
-        
         if not categories:
             return 0.0
         
-        max_severity = max(severity_weights.get(cat, 0.3) for cat in categories)
+        # Calculate severity based on model confidence for each category
+        max_severity = 0.0
+        
+        for category in categories:
+            if category in self.models:
+                # Use the model's feature importance or confidence as severity weight
+                try:
+                    # Get the model's coefficient magnitude as severity indicator
+                    model = self.models[category]
+                    if hasattr(model.named_steps['classifier'], 'coef_'):
+                        coef_magnitude = abs(model.named_steps['classifier'].coef_).mean()
+                        severity = min(1.0, coef_magnitude / 2.0)  # Normalize to 0-1
+                    else:
+                        severity = 0.7  # Default for non-linear models
+                except Exception:
+                    severity = 0.7  # Fallback
+            else:
+                severity = 0.5  # Unknown category
+            
+            max_severity = max(max_severity, severity)
+        
         return max_severity

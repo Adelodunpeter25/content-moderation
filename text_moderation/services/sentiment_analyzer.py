@@ -1,62 +1,64 @@
 """Sentiment analysis service for emotional content classification."""
-import re
 from typing import Tuple, List
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+import joblib
+from pathlib import Path
 
 from core.logging import logger
 
 class SentimentAnalyzer:
-    """Analyzes sentiment and emotional tone of text."""
+    """ML-based sentiment analyzer using specialized datasets."""
     
     def __init__(self):
         from .dataset_loader import ModerationDatasetLoader
         
         self.dataset_loader = ModerationDatasetLoader()
-        self.positive_words, self.negative_words = self._load_sentiment_words()
+        self.model = None
+        self.model_dir = Path("data/text_moderation/models")
+        self.model_dir.mkdir(parents=True, exist_ok=True)
         
-        # Intensifiers
-        self.intensifiers = [
-            "very", "extremely", "really", "totally", "completely",
-            "absolutely", "quite", "rather", "pretty", "so"
-        ]
-        
-        # Negation words
-        self.negations = [
-            "not", "no", "never", "nothing", "nobody", "nowhere",
-            "neither", "nor", "none", "hardly", "scarcely", "barely"
-        ]
-        
-        # Compile patterns
-        self.positive_pattern = re.compile(r'\b(?:' + '|'.join(self.positive_words) + r')\b', re.IGNORECASE)
-        self.negative_pattern = re.compile(r'\b(?:' + '|'.join(self.negative_words) + r')\b', re.IGNORECASE)
-        self.intensifier_pattern = re.compile(r'\b(?:' + '|'.join(self.intensifiers) + r')\b', re.IGNORECASE)
-        self.negation_pattern = re.compile(r'\b(?:' + '|'.join(self.negations) + r')\b', re.IGNORECASE)
+        self._load_or_train_model()
     
-    def _load_sentiment_words(self) -> Tuple[List[str], List[str]]:
-        """Load sentiment words from real dataset."""
+    def _load_or_train_model(self) -> None:
+        """Load existing model or train new one from dataset."""
+        model_path = self.model_dir / 'sentiment_model.joblib'
+        
+        if model_path.exists():
+            self.model = joblib.load(model_path)
+            logger.info(f"Loaded sentiment model from {model_path}")
+        else:
+            self._train_model()
+    
+    def _train_model(self) -> None:
+        """Train sentiment analysis model."""
+        logger.info("Training sentiment model...")
+        
+        # Load dataset
         texts, labels = self.dataset_loader.load_sentiment_dataset()
         
-        # Extract words from positive and negative examples
-        positive_texts = [texts[i] for i, label in enumerate(labels) if label == 'positive']
-        negative_texts = [texts[i] for i, label in enumerate(labels) if label == 'negative']
+        # Convert labels to binary
+        binary_labels = [1 if label == 'positive' else 0 for label in labels]
         
-        # Extract common words from each sentiment category
-        positive_words = set()
-        negative_words = set()
+        # Create pipeline
+        pipeline = Pipeline([
+            ('tfidf', TfidfVectorizer(max_features=5000, stop_words='english')),
+            ('classifier', LogisticRegression(random_state=42))
+        ])
         
-        # Process positive texts
-        for text in positive_texts[:200]:  # Limit for performance
-            words = text.lower().split()
-            positive_words.update([word for word in words if len(word) > 3])
+        # Train model
+        pipeline.fit(texts[:10000], binary_labels[:10000])  # Use subset for speed
         
-        # Process negative texts
-        for text in negative_texts[:200]:  # Limit for performance
-            words = text.lower().split()
-            negative_words.update([word for word in words if len(word) > 3])
+        # Save model
+        model_path = self.model_dir / 'sentiment_model.joblib'
+        joblib.dump(pipeline, model_path)
+        self.model = pipeline
         
-        return list(positive_words)[:50], list(negative_words)[:50]
+        logger.info(f"Trained and saved sentiment model to {model_path}")
     
     def analyze_sentiment(self, text: str) -> Tuple[str, float, float]:
-        """Analyze sentiment of text.
+        """Analyze sentiment using ML model.
         
         Args:
             text: Text to analyze
@@ -67,43 +69,33 @@ class SentimentAnalyzer:
         if not text or not isinstance(text, str):
             return "neutral", 0.5, 0.0
         
-        # Count sentiment words
-        positive_matches = len(self.positive_pattern.findall(text))
-        negative_matches = len(self.negative_pattern.findall(text))
-        intensifier_matches = len(self.intensifier_pattern.findall(text))
-        negation_matches = len(self.negation_pattern.findall(text))
-        
-        # Apply intensifier boost
-        intensifier_boost = min(0.3, intensifier_matches * 0.1)
-        
-        # Apply negation (flips sentiment)
-        if negation_matches > 0:
-            positive_matches, negative_matches = negative_matches, positive_matches
-        
-        # Calculate raw score
-        total_words = len(text.split())
-        positive_score = (positive_matches / max(total_words, 1)) + intensifier_boost
-        negative_score = (negative_matches / max(total_words, 1)) + intensifier_boost
-        
-        # Determine sentiment
-        score_diff = positive_score - negative_score
-        
-        if abs(score_diff) < 0.1:
-            sentiment = "neutral"
-            confidence = 0.5
-            final_score = 0.0
-        elif score_diff > 0:
-            sentiment = "positive"
-            confidence = min(0.95, 0.5 + abs(score_diff))
-            final_score = min(1.0, score_diff * 2)
-        else:
-            sentiment = "negative"
-            confidence = min(0.95, 0.5 + abs(score_diff))
-            final_score = max(-1.0, score_diff * 2)
-        
-        logger.info(f"Sentiment analysis: {sentiment} (confidence={confidence:.3f}, score={final_score:.3f})")
-        
-        return sentiment, confidence, final_score
+        try:
+            # Get prediction
+            prediction = self.model.predict([text])[0]
+            probabilities = self.model.predict_proba([text])[0]
+            
+            # Calculate confidence and score
+            confidence = probabilities.max()
+            
+            if prediction == 1:  # Positive
+                sentiment = "positive"
+                final_score = probabilities[1]
+            else:  # Negative
+                sentiment = "negative"
+                final_score = -probabilities[0]
+            
+            # Check for neutral (low confidence)
+            if confidence < 0.6:
+                sentiment = "neutral"
+                final_score = 0.0
+            
+            logger.info(f"Sentiment analysis: {sentiment} (confidence={confidence:.3f}, score={final_score:.3f})")
+            
+            return sentiment, confidence, final_score
+            
+        except Exception as e:
+            logger.error(f"Error in sentiment analysis: {e}")
+            return "neutral", 0.5, 0.0
     
     def is_emotionally_charged(self, sentiment: str, confidence: float) -> bool:
         """Check if content is emotionally charged.

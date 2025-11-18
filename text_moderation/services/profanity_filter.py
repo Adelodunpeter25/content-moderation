@@ -23,8 +23,21 @@ class ProfanityFilter:
         self.profanity_pattern = self._build_profanity_pattern()
     
     def _load_profanity_words(self) -> List[str]:
-        """Load profanity words from real dataset."""
-        return self.dataset_loader.load_profanity_wordlist()
+        """Extract profanity patterns from offensive language dataset."""
+        texts, labels = self.dataset_loader.load_offensive_language_dataset()
+        
+        # Extract words from offensive examples
+        offensive_words = set()
+        offensive_texts = [texts[i] for i, label in enumerate(labels) if label == 1]
+        
+        for text in offensive_texts[:1000]:  # Process subset
+            words = text.lower().split()
+            # Filter for potentially offensive words (length > 3, contains certain patterns)
+            for word in words:
+                if len(word) > 3 and any(char in word for char in 'aeiou'):
+                    offensive_words.add(word)
+        
+        return list(offensive_words)[:200]  # Return top 200
         
     def _build_profanity_pattern(self) -> re.Pattern:
         """Build regex pattern for profanity detection."""
@@ -88,7 +101,7 @@ class ProfanityFilter:
         return has_profanity, filtered_text, list(set(detected_words))
     
     def get_profanity_score(self, detected_words: List[str]) -> float:
-        """Calculate profanity severity score.
+        """Calculate profanity severity score based on dataset frequency.
         
         Args:
             detected_words: List of detected profanity words
@@ -99,6 +112,15 @@ class ProfanityFilter:
         if not detected_words:
             return 0.0
         
-        # Simple scoring based on word count
-        score = min(1.0, len(detected_words) * 0.3)
-        return score
+        # Calculate score based on word frequency in offensive dataset
+        total_score = 0.0
+        
+        for word in detected_words:
+            # Calculate word severity based on its frequency in offensive examples
+            word_frequency = self.profanity_words.count(word) if word in self.profanity_words else 0
+            word_severity = min(1.0, word_frequency / max(len(self.profanity_words), 1) * 10)
+            total_score += word_severity
+        
+        # Normalize by number of detected words
+        average_score = total_score / len(detected_words)
+        return min(1.0, average_score)
